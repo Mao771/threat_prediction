@@ -1,0 +1,1 @@
+from classifier.knn import KNNClassifier
