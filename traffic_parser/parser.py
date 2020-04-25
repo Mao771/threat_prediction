@@ -23,7 +23,7 @@
 from scapy.all import *
 from scapy.layers.inet import *
 from threading import Timer
-from definitions import ROOT_DIR
+from ..definitions import ROOT_DIR
 
 
 def process_packetlist(packetlist):
@@ -49,7 +49,7 @@ def process_packetlist(packetlist):
                 else:
                     icmp_out += 1
 
-    write_log((tcp_in, tcp_out, udp_in, udp_out, icmp_in, icmp_out,))
+    print(tcp_in, tcp_out, udp_in, udp_out, icmp_in, icmp_out)
 
 
 def sniff(sniffer):

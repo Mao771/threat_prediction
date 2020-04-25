@@ -93,6 +93,10 @@ def evaluate_models(dataset, p_values, d_values, q_values):
     print('Best ARIMA%s MSE=%.3f' % (best_cfg, best_score))
 
 
+def calculate_cvss_metric():
+    pass
+
+
 def get_stationarity(data_frame):
     rolling = data_frame.rolling(window=11)
 
