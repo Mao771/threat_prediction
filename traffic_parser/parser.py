@@ -23,7 +23,7 @@
 from scapy.all import *
 from scapy.layers.inet import *
 from threading import Timer
-from ..definitions import ROOT_DIR
+#from ..definitions import ROOT_DIR
 
 
 def process_packetlist(packetlist):
@@ -63,19 +63,19 @@ def sniff(sniffer):
     Timer(5, sniff, [sniffer]).start()
 
 
-def write_log(values):
-    timestamp = time.time()
-    line = ','.join([str(v) for v in values])
-    filename = os.path.join(ROOT_DIR, 'parser.log')
-
-    try:
-        if os.path.getsize(filename) > 1024:
-            os.remove(filename)
-    except:
-        pass
-
-    with open(filename, 'a+') as f:
-        f.writelines('[{}]: {}\n'.format(str(timestamp), line))
+# def write_log(values):
+#     timestamp = time.time()
+#     line = ','.join([str(v) for v in values])
+#     filename = os.path.join(ROOT_DIR, 'parser.log')
+#
+#     try:
+#         if os.path.getsize(filename) > 1024:
+#             os.remove(filename)
+#     except:
+#         pass
+#
+#     with open(filename, 'a+') as f:
+#         f.writelines('[{}]: {}\n'.format(str(timestamp), line))
 
 
 if __name__ == '__main__':
