@@ -8,7 +8,8 @@ import warnings
 import math
 
 from app.utils import get_preprocessed_data, create_dataset
-from detection.EWMADetector import EWMADetector
+from detection import EWMADetector, ChaosDetector
+from util import get_threats
 warnings.filterwarnings("ignore")
 
 
@@ -133,9 +134,13 @@ def replace_na(df, *columns):
 
 
 if __name__ == '__main__':
-    ds = create_dataset()
-    ewma_detector = EWMADetector(ds.packets_recv)
-    ewma_detector.detect()
+    # data = get_preprocessed_data()
+    # ewma_detector = EWMADetector(data)
+    # chaos_detector = ChaosDetector(data)
+    # chaos_detector.detect()
+    # ewma_detector.detect()
+    data = get_threats()
+
     # 'non_negative_difference(packets_recv) as pr',
     # 'non_negative_difference(packets_sent) as ps',
     # 'non_negative_difference(bytes_recv) as br',

