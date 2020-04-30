@@ -12,13 +12,8 @@ class DbHelper:
                                         self.db_config['User'], self.db_config['Password'],
                                         self.db_config['Db'])
 
-    def write(self, data):
-        try:
-            for interface_data in data:
-                self.__normalize_measurement(interface_data[0])
-                self.db_client.write_points(interface_data)
-        except:
-            pass
+    def write(self, df):
+        self.db_client.write_points(df)
 
     def __normalize_measurement(self, interface_data):
         tags = interface_data.get('tags')
@@ -39,6 +34,6 @@ class DbHelper:
 
     def get(self, measurements, aggregation, fields):
         str_fields = ','.join(fields)
-        result = pd.DataFrame(self.db_client.query(
-            'SELECT {} FROM {} {}'.format(str_fields, measurements, aggregation)).get_points())
+        str_query = 'SELECT {} FROM {} {}'.format(str_fields, measurements, aggregation)
+        result = pd.DataFrame(self.db_client.query(str_query).get_points())
         return result
