@@ -1,1 +1,3 @@
+from classifier.ModelClassificationBase import ModelClassificationBase
+from classifier.ModelClassificationFactory import ModelClassificationFactory
 from classifier.knn import KNNClassifier

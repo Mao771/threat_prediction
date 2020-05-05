@@ -20,6 +20,11 @@ class Arima(ModelBase):
             'order': (1, 1, 0)
         }
 
+    def forecast(self, horizon: int):
+        model_fit = ARIMA(self.series_train, **self.best_parameters).fit()
+
+        return model_fit.forecast(horizon)
+
     def tune_model(self, series_tune: pd.Series = None, max_evals: int = 3) -> float:
         if series_tune:
             self.series_tune = series_tune

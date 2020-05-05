@@ -16,9 +16,14 @@ class SesModel(ModelBase):
 
         self.model = SimpleExpSmoothing
         self.best_parameters = {
-            'smoothing_level': 0.6,
+            'smoothing_level': 0.3,
             'optimized': False
         }
+
+    def forecast(self, horizon: int):
+        model_fit = SimpleExpSmoothing(self.series_train).fit(**self.best_parameters)
+
+        return model_fit.forecast(horizon)
 
     def tune_model(self, series_tune: pd.Series = None, max_evals: int = 3) -> float:
         space_ses = {
