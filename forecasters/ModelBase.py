@@ -18,8 +18,10 @@ class ModelBase(ABC):
     def forecast(self, horizon: int):
         if not self.model or not self.best_parameters:
             raise ValueError('Model must be initialized')
-
-        model_fit = self.model(self.series_train, self.best_parameters).fit()
+        try:
+            model_fit = self.model(self.series_train, **self.best_parameters).fit()
+        except TypeError:
+            model_fit = self.model(self.series_train).fit(**self.best_parameters)
 
         return model_fit.forecast(horizon)
 

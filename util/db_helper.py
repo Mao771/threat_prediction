@@ -12,8 +12,8 @@ class DbHelper:
                                         self.db_config['User'], self.db_config['Password'],
                                         self.db_config['Db'])
 
-    def write(self, df):
-        self.db_client.write_points(df)
+    def write(self, points):
+        self.db_client.write_points(points)
 
     def __normalize_measurement(self, interface_data):
         tags = interface_data.get('tags')
