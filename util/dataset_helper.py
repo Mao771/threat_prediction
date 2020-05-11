@@ -9,12 +9,20 @@ import pandas as pd
 db_helper = DbHelper(SETTINGS_FILE)
 
 
-def get_threats(days: int = 365):
-    df_attacks = db_helper.get(measurements='snort_log',
-                               aggregation='WHERE time <= now() AND time >= now() - {}d'.format(days),
-                               fields=('detail', 'type'))
+def get_threats(days: int = 365, from_begin=True):
 
+    df_attacks = db_helper.get(measurements='snort_log',
+                               aggregation='',
+                               # aggregation='WHERE time <= now() AND time >= now() - {days}d' if from_begin else f'WHERE time <= now() AND time >= now() - {days}d',
+                               fields=('source', 'destination', 'severity', 'detail', 'type'))
+    df_attacks.index = pd.to_datetime(df_attacks.pop('time'))
     df_attacks.sort_values('time', inplace=True)
+
+    return df_attacks.first(f'{days}D') if from_begin else df_attacks.last(f'{days}D')
+
+
+def get_threats_pivot(days: int = 365):
+    df_attacks = get_threats(days)
 
     df_attacks_pivot = df_attacks.pivot_table(
         index='time',
