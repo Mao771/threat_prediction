@@ -1,3 +1,5 @@
+networkx
+pybbn
 hyperopt
 aniso8601==8.0.0
 certifi==2020.4.5.1
