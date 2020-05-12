@@ -9,19 +9,45 @@ import pandas as pd
 db_helper = DbHelper(SETTINGS_FILE)
 
 
+def get_preprocessed_traffic(minutes=10, from_begin=True, interface='em0'):
+
+    df_traffic = db_helper.get(measurements='net',
+                               aggregation=f"WHERE interface='{interface}'",
+                               fields=('packets_recv as pr',
+                                       'packets_sent as ps',
+                                       'bytes_recv as br',
+                                       'bytes_sent as bs'))
+
+    processed_df = df_traffic.sort_values(by='time')
+    processed_df.reset_index(drop=True, inplace=True)
+    non_negative_difference(processed_df, 'pr', 'ps', 'br', 'bs')
+    processed_df.dropna(inplace=True)
+
+    return get_interval(processed_df, count=minutes, measure='min', from_begin=from_begin)
+
+
 def get_threats(days: int = 365, from_begin=True):
 
     df_attacks = db_helper.get(measurements='snort_log',
                                aggregation='',
                                # aggregation='WHERE time <= now() AND time >= now() - {days}d' if from_begin else f'WHERE time <= now() AND time >= now() - {days}d',
                                fields=('source', 'destination', 'severity', 'detail', 'type'))
-    df_attacks.index = pd.to_datetime(df_attacks.pop('time'))
-    df_attacks.sort_values('time', inplace=True)
 
-    return df_attacks.first(f'{days}D') if from_begin else df_attacks.last(f'{days}D')
+    return get_interval(df_attacks, measure='D', count=days, from_begin=from_begin)
 
 
-def get_threats_pivot(days: int = 365):
+def get_interval(df: pd.DataFrame,
+                 time_column='time',
+                 from_begin=False,
+                 count=24,
+                 measure='H'):
+    df.index = pd.to_datetime(df.pop(time_column))
+    df.sort_values(time_column, inplace=True)
+
+    return df.first(f'{count}{measure}') if from_begin else df.last(f'{count}{measure}')
+
+
+def get_threats_pivot(days: int = 100):
     df_attacks = get_threats(days)
 
     df_attacks_pivot = df_attacks.pivot_table(

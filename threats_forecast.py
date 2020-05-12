@@ -1,11 +1,11 @@
-from util import get_threats, DbHelper
+from util import get_threats_pivot, DbHelper
 from definitions import SETTINGS_FILE
 from forecasters import ModelFactory
 
 if __name__ == '__main__':
     db_helper = DbHelper(SETTINGS_FILE)
 
-    df_threats = get_threats()
+    df_threats = get_threats_pivot()
     model_names = ['ses']
 
     result_points = []
@@ -18,7 +18,7 @@ if __name__ == '__main__':
             threats_name = column
 
         for model_name in model_names:
-            model = ModelFactory.create_model(model_name, series_train = df_threats[column])
+            model = ModelFactory.create_model(model_name, series_train=df_threats[column])
             score = 0#model.tune_model(max_evals=2)
 
             if score < best_score:

@@ -5,16 +5,21 @@ from pybbn.graph.dag import Bbn
 from pybbn.graph.edge import Edge, EdgeType
 from pybbn.graph.node import BbnNode
 from pybbn.graph.variable import Variable
+from pybbn.graph.jointree import EvidenceBuilder
+from pybbn.pptc.inferencecontroller import InferenceController
 import warnings
 from matplotlib import pyplot as plt
 import networkx as nx
 from pybbn.generator.bbngenerator import convert_for_drawing
 from typing import List
-
+from util import DbHelper
+from definitions import SETTINGS_FILE
+import datetime
 
 class BayesianPredictor:
 
-    def __init__(self):
+    def __init__(self, df_alerts: pd.DataFrame):
+        self.df_alerts = df_alerts
         self.A = self.B = {}
         self.dag_nodes = {}
         self.bbn_nodes = {}
@@ -22,6 +27,7 @@ class BayesianPredictor:
         self.corr = {}
         self.cpt = None
         self.bbn = Bbn()
+        self.bbn_pmg_nodes = {}
         self.node_id = 0
 
     def add_dag_node(self, detail, src, dst):
@@ -136,28 +142,30 @@ class BayesianPredictor:
 
         return result_dag_nodes
 
-    def process_alerts(self, df_alerts: pd.DataFrame):
-        [self.create_node_alerts(row) for row in df_alerts[['detail', 'source', 'destination', 'severity']].values]
+    def _process_alerts(self):
+        [self.create_node_alerts(row) for row in self.df_alerts[['detail', 'source', 'destination', 'severity']].values]
 
         result = json.dumps(self.dag_nodes)
         print(result)
 
     def build_bbn(self):
+        self._process_alerts()
+
         processed_dag_nodes = self.process_dag_nodes()
         print(json.dumps(processed_dag_nodes))
 
         for dag_id, node in processed_dag_nodes.items():
-            prob_names = prob_values = []
+            prob_values = []
+            prob_names = ['Occurs', 'Does not occur']
 
             if node.get('probs') is not None:
                 for node_id, prob_val in node.get('probs').items():
-                    prob_names.append(processed_dag_nodes[int(node_id)].get('name'))
-                    prob_values.append(prob_val)
+                    prob_values.extend([prob_val, 1-prob_val, 0.5, 0.5, 0.5, 0.5])
             else:
-                prob_names = [node['name']]
-                prob_values = [1]
+                prob_values = [0.5, 0.5]
             nl = '\n'
-            self.bbn.add_node(self.add_bbn_node(dag_id, f"{node['name']}{nl}{node['src']}->{node['dst']}", prob_names, prob_values))
+            self.bbn.add_node(self.add_bbn_node(dag_id, f"{node['name']}{nl}{node['src']}->{node['dst']}", prob_names,
+                                                prob_values))
 
         for dag_id, node in processed_dag_nodes.items():
             try:
@@ -183,12 +191,46 @@ class BayesianPredictor:
         plt.title('Bayesian attack graph')
         plt.show()
 
+    def make_predictions(self):
+        result = []
+        join_tree = InferenceController.apply(self.bbn)
+
+        ev = EvidenceBuilder()\
+            .with_node(join_tree.get_bbn_node(7))\
+            .with_evidence('Occurs', 1)\
+            .build()
+        join_tree.set_observation(ev)
+
+
+        for node in join_tree.get_bbn_nodes():
+            timestamp = datetime.datetime.utcnow()
+
+            potential = join_tree.get_bbn_potential(node)
+            node_name = node.variable.name
+            occur_percent = potential.entries[0].value * 100
+            print(node)
+            print(potential)
+            print('--------------------->')
+
+            result.append({
+                'measurement': 'threats_level',
+                'fields': {
+                    node_name: occur_percent
+                }
+            })
+
+        return result
+
 
 if __name__ == '__main__':
-    df_threats = get_threats(days=5)
+    db = DbHelper(SETTINGS_FILE)
+    df_threats = get_threats(days=1, from_begin=True)
     df_threats = df_threats[df_threats['type'] != 'Not Suspicious Traffic']
     df_threats.to_csv('threats.csv')
-    bp = BayesianPredictor()
-    bp.process_alerts(df_threats)
+    bp = BayesianPredictor(df_threats)
     bp.build_bbn()
-    bp.draw_bbn()
+    # bp.draw_bbn()
+
+    result_points = bp.make_predictions()
+    db.drop('threats_level')
+    db.write(result_points, time_precision='ms')

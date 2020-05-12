@@ -2,11 +2,11 @@ from statsmodels.tsa.arima_model import ARIMA
 import math
 from sklearn.metrics import mean_squared_error
 from matplotlib import pyplot
+import pandas as pd
 
+class ChaosDetector:
 
-class ChaosDetector():
-
-    def __init__(self, traffic_data, arima_order = (5, 1, 0)):
+    def __init__(self, traffic_data: pd.DataFrame, arima_order=(5, 1, 0)):
         self.traffic_data = traffic_data
         self.arima_order = arima_order
 
@@ -16,7 +16,7 @@ class ChaosDetector():
         train_size = int(len(X) * 0.66)
         train, test = X[0:train_size], X[train_size:]
 
-        self._forecast(train, test, self.arima_order)
+        return self._forecast(train, test, self.arima_order)
 
     def _forecast(self, train, test, arima_order=(5, 1, 0), log=False):
         history = [x for x in train]
@@ -50,8 +50,8 @@ class ChaosDetector():
             if log:
                 print('predicted=%f, expected=%f' % (yhat, obs))
         error = mean_squared_error(test, predictions)
-        indexes = [lp_score['index'] - 1 for lp_score in lp_scores if lp_score['val'] < 0]
-        anomaly_traffic = self.traffic_data.iloc[indexes, :]
+        indexes = [lp_score['index'] for lp_score in lp_scores if lp_score['val'] < 0]
+        anomaly_traffic = self.traffic_data.loc[indexes, :]
 
         if log:
             print('Test MSE: %.3f' % error)
