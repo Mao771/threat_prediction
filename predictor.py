@@ -15,6 +15,8 @@ from typing import List
 from util import DbHelper
 from definitions import SETTINGS_FILE
 import datetime
+from itertools import product
+
 
 class BayesianPredictor:
 
@@ -115,12 +117,12 @@ class BayesianPredictor:
                         if int(dag_id) == int(b_id):
                             if node.get('probs') is not None:
                                 try:
-                                    node['probs'][a_id] = min(node['probs'][a_id], value / corr_a_all)
+                                    node['probs'][int(a_id)] = min(node['probs'][int(a_id)], value / corr_a_all)
                                 except KeyError:
-                                    node['probs'][a_id] = value / corr_a_all
+                                    node['probs'][int(a_id)] = value / corr_a_all
                             else:
                                 node['probs'] = {
-                                    a_id: value / corr_a_all
+                                    int(a_id): value / corr_a_all
                                 }
                             break
 
@@ -129,13 +131,22 @@ class BayesianPredictor:
 
     def process_dag_nodes(self):
         result_dag_nodes = {}
+        print(json.dumps(self.dag_nodes))
+
         for dag_id, node in self.dag_nodes.items():
-            if node.get('probs') is not None:
+            node_probs = node.get('probs')
+            if node_probs is not None:
+                # detecting and removing cycles
+                for dag_prob_id, node_prob in node_probs.items():
+                    dag_prob_probs = self.dag_nodes[int(dag_prob_id)].get('probs')
+                    if dag_prob_probs is not None and dag_prob_probs.get(int(dag_id)) is not None:
+                        dag_prob_probs.pop(int(dag_id), None)
+
                 result_dag_nodes[dag_id] = node
             else:
                 for idj, nodej in self.dag_nodes.items():
                     try:
-                        if str(dag_id) in nodej['probs'].keys():
+                        if int(dag_id) in nodej['probs'].keys():
                             result_dag_nodes[dag_id] = node
                     except KeyError:
                         continue
@@ -146,21 +157,35 @@ class BayesianPredictor:
         [self.create_node_alerts(row) for row in self.df_alerts[['detail', 'source', 'destination', 'severity']].values]
 
         result = json.dumps(self.dag_nodes)
-        print(result)
 
     def build_bbn(self):
         self._process_alerts()
 
         processed_dag_nodes = self.process_dag_nodes()
-        print(json.dumps(processed_dag_nodes))
+        print(f'Building bbn from:{json.dumps(processed_dag_nodes)}')
 
         for dag_id, node in processed_dag_nodes.items():
             prob_values = []
-            prob_names = ['Occurs', 'Does not occur']
+            prob_names = [f'Occurs', f'Does not occur']
 
-            if node.get('probs') is not None:
-                for node_id, prob_val in node.get('probs').items():
-                    prob_values.extend([prob_val, 1-prob_val, 0.5, 0.5, 0.5, 0.5])
+            if node.get('probs') is not None and len(node.get('probs')) > 0:
+                cpt_states = set(product(['Occurs', 'Does not occur'], repeat=len(node.get('probs'))))
+
+                for cpt_state in cpt_states:
+                    prob_occur = False
+                    for idx, node_id in enumerate(node.get('probs')):
+                        if cpt_state[idx] != 'Does not occur':
+                            prob_occur = True
+                            prob = node.get('probs')[node_id]
+                            if prob == 1:
+                                prob = 0.99
+                            prob_values.extend([prob, 1 - prob])
+                            break
+                    if not prob_occur:
+                        prob_values.extend([0, 0])
+
+                # for node_id, prob_val in node.get('probs').items():
+                #     prob_values.extend([prob_val, 1-prob_val, 0.5, 0.5])
             else:
                 prob_values = [0.5, 0.5]
             nl = '\n'
@@ -196,20 +221,21 @@ class BayesianPredictor:
         join_tree = InferenceController.apply(self.bbn)
 
         ev = EvidenceBuilder()\
-            .with_node(join_tree.get_bbn_node(7))\
+            .with_node(join_tree.get_bbn_node(13))\
             .with_evidence('Occurs', 1)\
             .build()
         join_tree.set_observation(ev)
-
 
         for node in join_tree.get_bbn_nodes():
             timestamp = datetime.datetime.utcnow()
 
             potential = join_tree.get_bbn_potential(node)
             node_name = node.variable.name
-            occur_percent = potential.entries[0].value * 100
+            occur_percent = 99 if node.id != 13 and potential.entries[0].value == 1 else potential.entries[0].value * 100
+            not_occur_percent = 1 if node.id != 13 and potential.entries[1].value == 0 else potential.entries[1].value * 100
             print(node)
-            print(potential)
+            print(f'Probability Occurs: {round(occur_percent)}%')
+            print(f'Probability Does not occur: {round(not_occur_percent)}%')
             print('--------------------->')
 
             result.append({
@@ -224,12 +250,12 @@ class BayesianPredictor:
 
 if __name__ == '__main__':
     db = DbHelper(SETTINGS_FILE)
-    df_threats = get_threats(days=1, from_begin=True)
+    df_threats = get_threats(days=7, from_begin=True)
     df_threats = df_threats[df_threats['type'] != 'Not Suspicious Traffic']
     df_threats.to_csv('threats.csv')
     bp = BayesianPredictor(df_threats)
     bp.build_bbn()
-    # bp.draw_bbn()
+    bp.draw_bbn()
 
     result_points = bp.make_predictions()
     db.drop('threats_level')
