@@ -23,3 +23,6 @@ class DbHelper:
 
     def drop(self, measurement):
         self.db_client.drop_measurement(measurement)
+
+    def close(self):
+        self.db_client.close()

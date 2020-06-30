@@ -16,6 +16,8 @@ from util import DbHelper
 from definitions import SETTINGS_FILE
 import datetime
 from itertools import product
+import sys
+import threading
 
 
 class BayesianPredictor:
@@ -131,7 +133,6 @@ class BayesianPredictor:
 
     def process_dag_nodes(self):
         result_dag_nodes = {}
-        print(json.dumps(self.dag_nodes))
 
         for dag_id, node in self.dag_nodes.items():
             node_probs = node.get('probs')
@@ -154,15 +155,16 @@ class BayesianPredictor:
         return result_dag_nodes
 
     def _process_alerts(self):
-        [self.create_node_alerts(row) for row in self.df_alerts[['detail', 'source', 'destination', 'severity']].values]
+        print('Creating correlated threats alerts...')
 
-        result = json.dumps(self.dag_nodes)
+        [self.create_node_alerts(row) for row in self.df_alerts[['detail', 'source', 'destination', 'severity']].values]
 
     def build_bbn(self):
         self._process_alerts()
 
+        print('Building Bayesian network of threats...')
+
         processed_dag_nodes = self.process_dag_nodes()
-        print(f'Building bbn from:{json.dumps(processed_dag_nodes)}')
 
         for dag_id, node in processed_dag_nodes.items():
             prob_values = []
@@ -204,6 +206,7 @@ class BayesianPredictor:
                 continue
 
     def draw_bbn(self):
+        print("Drawing Bayesian network of threats...")
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
 
@@ -213,22 +216,23 @@ class BayesianPredictor:
         plt.subplot(121)
         labels = dict([(k, node.variable.name) for k, node in self.bbn.nodes.items()])
         nx.draw(graph, pos=pos, with_labels=True, labels=labels)
+        plt.pause(0.001)
         plt.title('Bayesian attack graph')
         plt.show()
 
     def make_predictions(self):
+        print("Making predictions about threats level based on built Bayesian network...")
+
         result = []
         join_tree = InferenceController.apply(self.bbn)
 
-        ev = EvidenceBuilder()\
-            .with_node(join_tree.get_bbn_node(13))\
-            .with_evidence('Occurs', 1)\
+        ev = EvidenceBuilder() \
+            .with_node(join_tree.get_bbn_node(13)) \
+            .with_evidence('Occurs', 1) \
             .build()
         join_tree.set_observation(ev)
 
         for node in join_tree.get_bbn_nodes():
-            timestamp = datetime.datetime.utcnow()
-
             potential = join_tree.get_bbn_potential(node)
             node_name = node.variable.name
             occur_percent = 99 if node.id != 13 and potential.entries[0].value == 1 else potential.entries[0].value * 100
@@ -248,15 +252,41 @@ class BayesianPredictor:
         return result
 
 
-if __name__ == '__main__':
-    db = DbHelper(SETTINGS_FILE)
-    df_threats = get_threats(days=7, from_begin=True)
-    df_threats = df_threats[df_threats['type'] != 'Not Suspicious Traffic']
-    df_threats.to_csv('threats.csv')
-    bp = BayesianPredictor(df_threats)
-    bp.build_bbn()
-    bp.draw_bbn()
+class ThreatsPredictor():
 
-    result_points = bp.make_predictions()
-    db.drop('threats_level')
-    db.write(result_points, time_precision='ms')
+    def predict(self):
+        print("-----------------------------------------------------------------------")
+        print("------------Predicting threats level using Bayesian network------------")
+        print("-----------------------------------------------------------------------")
+
+        is_args = False
+        args = dict(arg.split('=') for arg in sys.argv[1:])
+
+        try:
+            if is_args:
+                days = int(args['days'])
+            else:
+                days = 7
+        except Exception:
+            print('Function requires a mandatory int argument that represents analyzing horizon in days: days=<days>')
+        else:
+            db = DbHelper(SETTINGS_FILE)
+
+            df_threats = get_threats(days=days, from_begin=True)
+            df_threats = df_threats[df_threats['type'] != 'Not Suspicious Traffic']
+            df_threats.to_csv('threats.csv')
+            bp = BayesianPredictor(df_threats)
+            bp.build_bbn()
+            bp.draw_bbn()
+
+            result_points = bp.make_predictions()
+
+            print("Writing results to the database")
+            db.drop('threats_level')
+            db.write(result_points, time_precision='ms')
+            db.close()
+
+
+if __name__ == '__main__':
+    tp = ThreatsPredictor()
+    tp.predict()

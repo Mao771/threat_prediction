@@ -6,7 +6,7 @@ import pandas as pd
 
 class ChaosDetector:
 
-    def __init__(self, traffic_data: pd.DataFrame, arima_order=(5, 1, 0)):
+    def __init__(self, traffic_data: pd.DataFrame, arima_order=(1, 1, 0)):
         self.traffic_data = traffic_data
         self.arima_order = arima_order
 
@@ -18,7 +18,7 @@ class ChaosDetector:
 
         return self._forecast(train, test, self.arima_order)
 
-    def _forecast(self, train, test, arima_order=(5, 1, 0), log=False):
+    def _forecast(self, train, test, arima_order=(1, 1, 0), log=False):
         history = [x for x in train]
         predictions = list()
         lp_scores = list()

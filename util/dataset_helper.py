@@ -47,7 +47,7 @@ def get_interval(df: pd.DataFrame,
     return df.first(f'{count}{measure}') if from_begin else df.last(f'{count}{measure}')
 
 
-def get_threats_pivot(days: int = 100):
+def get_threats_pivot(days: int = 70):
     df_attacks = get_threats(days)
 
     df_attacks_pivot = df_attacks.pivot_table(
