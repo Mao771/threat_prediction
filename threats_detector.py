@@ -31,7 +31,7 @@ def append_point(time, detail, type='Traffic anomaly'):
     })
 
 
-if __name__ == '__main__':
+def threats_detect():
     db_helper = DbHelper(SETTINGS_FILE)
     args = dict(arg.split('=') for arg in sys.argv[1:])
     try:
@@ -41,7 +41,7 @@ if __name__ == '__main__':
     else:
         print('Detecting anomalies for {0} minutes horizon'.format(minutes))
 
-        data = get_preprocessed_traffic(minutes=200, from_begin=False)
+        data = get_preprocessed_traffic(minutes=150, from_begin=False)
         # data = data.pr[30:]
 
         ewma_detector = EWMADetector(data)
@@ -65,3 +65,15 @@ if __name__ == '__main__':
 
         print("Writing results to the database")
         db_helper.write(results_points)
+
+
+def dos_detect_with_ip():
+    db_helper = DbHelper(SETTINGS_FILE)
+    data = get_preprocessed_traffic(minutes=150, from_begin=False)
+    chaos_detector = ChaosDetector(data)
+
+    chaos_detector.detect_with_dates()
+
+
+if __name__ == '__main__':
+    dos_detect_with_ip()
