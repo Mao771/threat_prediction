@@ -2,7 +2,7 @@ import pandas as pd
 from matplotlib import pyplot
 
 
-class EWMADetector():
+class EWMADetector:
     def __init__(self,
                  df_traffic: pd.DataFrame):
         self.df_traffic = df_traffic
@@ -10,7 +10,7 @@ class EWMADetector():
     def detect(self,
                traffic_parameter='pr',
                traffic_parameter_name='Packets received',
-               alpha: float = 0.15,
+               alpha: float = 0.3,
                beta: int = 3,
                plot: bool = True):
         X = self.df_traffic[traffic_parameter]
