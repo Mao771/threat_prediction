@@ -19,6 +19,9 @@ from itertools import product
 import sys
 import threading
 
+import matplotlib
+matplotlib.use('TkAgg')
+
 
 class BayesianPredictor:
 

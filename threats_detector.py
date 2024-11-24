@@ -1,9 +1,10 @@
 from util import DbHelper, get_preprocessed_traffic
 from detection import EWMADetector, ChaosDetector
 from definitions import SETTINGS_FILE
-
+from time import sleep
 import warnings
 import sys
+import numpy as np
 warnings.filterwarnings("ignore")
 
 results_points = []
@@ -41,7 +42,7 @@ def threats_detect():
     else:
         print('Detecting anomalies for {0} minutes horizon'.format(minutes))
 
-        data = get_preprocessed_traffic(minutes=150, from_begin=False)
+        data = get_preprocessed_traffic(minutes=60, from_begin=False)
         # data = data.pr[30:]
 
         ewma_detector = EWMADetector(data)
@@ -67,13 +68,58 @@ def threats_detect():
         db_helper.write(results_points)
 
 
-def dos_detect_with_ip():
-    db_helper = DbHelper(SETTINGS_FILE)
-    data = get_preprocessed_traffic(minutes=150, from_begin=False)
+def init_data():
+    data = get_preprocessed_traffic(minutes=1000, from_begin=False)
+    return data
+
+
+def dos_detect_with_ip(data):
+    if not data:
+        data = init_data()
     chaos_detector = ChaosDetector(data)
 
-    chaos_detector.detect_with_dates()
+    res = chaos_detector.detect_l_sq()
+    print(res)
+
+
+def dos_detect_poly(coefs, data = None):
+    if not data:
+        data = init_data()
+    chaos_detector = ChaosDetector(data)
+
+    res = chaos_detector.detect_poly_reg(coefs)
+    print(res)
+
+
+def dos_detect_ewma(data=None):
+    if data is None:
+        data = init_data()
+    chaos_detector = ChaosDetector(data)
+
+    res = chaos_detector.detect_ses()
+    print(res)
+
+
+def detect_arima(data=None):
+    chaos_detector = ChaosDetector(data)
+    anomalies_chaos = chaos_detector.detect()
+
+    print(anomalies_chaos)
 
 
 if __name__ == '__main__':
-    dos_detect_with_ip()
+    traffic_data = init_data()
+    # while True:
+    #     dos_detect_ewma(traffic_data)
+    #     sleep(5)
+
+    # result = np.polyfit(traffic_data.pr, traffic_data.coef, 3)
+    # coefs = [3*result[0], 2*result[1], result[2]]
+
+    # while True:
+    #     dos_detect_poly(coefs=coefs)
+    #     sleep(5)
+
+    while True:
+        detect_arima(traffic_data)
+        sleep(5)

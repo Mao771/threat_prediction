@@ -10,7 +10,9 @@ db_helper = DbHelper(SETTINGS_FILE)
 
 
 def get_preprocessed_traffic(minutes=10, from_begin=True, interface='em0'):
-
+    df_coef = db_helper.get(measurements='syn_coef',
+                            aggregation="",
+                            fields=['coef'])
     df_traffic = db_helper.get(measurements='net',
                                aggregation=f"WHERE interface='{interface}'",
                                fields=('packets_recv as pr',
@@ -18,16 +20,29 @@ def get_preprocessed_traffic(minutes=10, from_begin=True, interface='em0'):
                                        'bytes_recv as br',
                                        'bytes_sent as bs'))
 
+
+
+    df_coef.loc[:, 'time'] = pd.to_datetime(df_coef['time'], format='%Y-%m-%dT%H:%M:%S.%fZ', errors='raise').dt.round('10s')
+    df_traffic['format'] = 1
+    df_traffic.loc[df_traffic['time'].str.contains('.', regex=False), 'format'] = 2
+
+    df_traffic.loc[df_traffic['format'] == 1, 'time'] = pd.to_datetime(df_traffic.loc[df_traffic.format == 1, 'time'],
+                                                        format='%Y-%m-%dT%H:%M:%SZ').dt.round('10s')
+    df_traffic.loc[df_traffic['format'] == 2, 'time'] = pd.to_datetime(df_traffic.loc[df_traffic.format == 2, 'time'],
+                                                        format='%Y-%m-%dT%H:%M:%S.%fZ').dt.round('10s')
+
     processed_df = df_traffic.sort_values(by='time')
     processed_df.reset_index(drop=True, inplace=True)
     non_negative_difference(processed_df, 'pr', 'ps', 'br', 'bs')
     processed_df.dropna(inplace=True)
+    processed_df.drop('format', axis=1, inplace=True)
 
-    return get_interval(processed_df, count=minutes, measure='min', from_begin=from_begin)
+    joined = pd.merge(processed_df, df_coef, how='left', on='time').dropna()
+
+    return get_interval(joined, count=minutes, measure='min', from_begin=from_begin)
 
 
 def get_threats(days: int = 365, from_begin=True):
-
     df_attacks = db_helper.get(measurements='snort_log',
                                aggregation='',
                                # aggregation='WHERE time <= now() AND time >= now() - {days}d' if from_begin else f'WHERE time <= now() AND time >= now() - {days}d',
