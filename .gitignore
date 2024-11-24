@@ -1,7 +1,6 @@
 .idea
 venv
 train_data
-*.csv
 settings.conf
 *.p
 *.log

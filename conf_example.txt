@@ -1,0 +1,6 @@
+[InfluxDB]
+Host =
+Port =
+User =
+Password =
+Db = pfsense
